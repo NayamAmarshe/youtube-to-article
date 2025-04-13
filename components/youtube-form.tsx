@@ -6,12 +6,16 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { get_subtitles_for_video } from "@suejon/youtube-subtitles";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { AlertCircleIcon, Loader2Icon } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 import { BlurryBackground } from "./blurry-background";
+
+interface CaptionTrack {
+  languageCode: string;
+  baseUrl: string;
+}
 
 export function YouTubeForm() {
   const [url, setUrl] = useState("");
@@ -34,6 +38,52 @@ export function YouTubeForm() {
     }
   }, []);
 
+  const fetchSubtitlesWithProxy = async (videoId: string) => {
+    try {
+      // Using cors-anywhere proxy service
+      const proxyUrl = "https://cors-proxy.fringe.zone/";
+      const targetUrl = `https://www.youtube.com/watch?v=${videoId}`;
+      const response = await fetch(`${proxyUrl}${targetUrl}`);
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch video data");
+      }
+
+      const html = await response.text();
+      const captionsUrl = html.match(/"captionTracks":\[(.*?)\]/)?.[1];
+
+      if (!captionsUrl) {
+        throw new Error("No subtitles found for this video");
+      }
+
+      const captions = JSON.parse(`[${captionsUrl}]`) as CaptionTrack[];
+      const englishCaption = captions.find((caption) => caption.languageCode === "en");
+
+      if (!englishCaption) {
+        throw new Error("No English subtitles found for this video");
+      }
+
+      const captionResponse = await fetch(`${proxyUrl}${englishCaption.baseUrl}`);
+      if (!captionResponse.ok) {
+        throw new Error("Failed to fetch subtitles");
+      }
+
+      const captionXml = await captionResponse.text();
+      const parser = new DOMParser();
+      const xmlDoc = parser.parseFromString(captionXml, "text/xml");
+      const textElements = xmlDoc.getElementsByTagName("text");
+
+      return Array.from(textElements).map((element) => ({
+        text: element.textContent || "",
+        start: parseFloat(element.getAttribute("start") || "0"),
+        dur: parseFloat(element.getAttribute("dur") || "0"),
+      }));
+    } catch (error) {
+      console.error("Error fetching subtitles:", error);
+      throw error;
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -55,16 +105,17 @@ export function YouTubeForm() {
         throw new Error("Invalid YouTube URL");
       }
 
-      // Get subtitles directly in the browser
-      const subtitles = await get_subtitles_for_video(videoId);
+      // Get subtitles using the proxy
+      const subtitles = await fetchSubtitlesWithProxy(videoId);
+      console.log("🚀 => handleSubmit => subtitles:", subtitles);
       if (!subtitles || subtitles.length === 0) {
         throw new Error("No subtitles found for this video");
       }
       const transcript = subtitles.map((item: { text: string }) => item.text).join(" ");
 
       // Generate article using Gemini
-      const genAI = new GoogleGenerativeAI(keyToUse);
-      const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+      const genAI = new GoogleGenerativeAI(keyToUse.trim());
+      const model = genAI.getGenerativeModel({ model: "gemini-pro" });
       const prompt = `Convert the following lecture transcript into a well-structured article in markdown format. The transcript is a lecture on a specific topic and might have some technical terms and jargon that are not transcribed correctly, so make sure you understand the context and automatically add the correct terms. Include headings, subheadings, and proper formatting. Make sure to include all the details and information from the transcript:\n\n${transcript}.`;
 
       const result = await model.generateContent(prompt);
