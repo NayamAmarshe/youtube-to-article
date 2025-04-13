@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
+import { Card, CardContent, CardDescription, CardHeader } from "./ui/card";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -153,9 +153,9 @@ export function YouTubeForm() {
       <BlurryBackground />
       <div className="relative max-w-4xl mx-auto">
         <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary/70">
+          <h2 className="text-4xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary/70">
             YouTube to Article Generator
-          </h1>
+          </h2>
           <p className="text-xl text-muted-foreground">
             Transform YouTube videos into beautifully formatted articles
           </p>
@@ -163,9 +163,9 @@ export function YouTubeForm() {
 
         <Card className="backdrop-blur-xl bg-background/60 border-border/40 shadow-2xl">
           <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary/70">
+            <h3 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary/70">
               Generate Your Article
-            </CardTitle>
+            </h3>
             <CardDescription className="text-muted-foreground">
               Enter your YouTube URL and let AI create an article
             </CardDescription>
@@ -209,6 +209,7 @@ export function YouTubeForm() {
                     }
                   }}
                   required={!isUsingDefaultKey}
+                  aria-label="Gemini API Key"
                 />
                 {isUsingDefaultKey && (
                   <p className="text-sm text-muted-foreground">
@@ -235,6 +236,7 @@ export function YouTubeForm() {
                   value={url}
                   onChange={(e) => setUrl(e.target.value)}
                   required
+                  aria-label="YouTube URL"
                 />
               </div>
               <Button
@@ -255,7 +257,8 @@ export function YouTubeForm() {
             {error && (
               <Alert
                 variant="destructive"
-                className="bg-destructive/20 backdrop-blur-sm border-destructive/40">
+                className="bg-destructive/20 backdrop-blur-sm border-destructive/40"
+                role="alert">
                 <AlertCircleIcon className="h-4 w-4 text-destructive" />
                 <AlertTitle className="text-destructive">Error</AlertTitle>
                 <AlertDescription className="text-destructive">{error}</AlertDescription>
@@ -263,32 +266,34 @@ export function YouTubeForm() {
             )}
 
             {article && (
-              <div className="mt-8 space-y-4">
+              <section className="mt-8 space-y-4">
                 <div className="flex items-start gap-2 flex-col">
-                  <h3 className="text-xl font-semibold bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary/70">
+                  <h4 className="text-xl font-semibold bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary/70">
                     Generated Article
-                  </h3>
+                  </h4>
                   <div className="flex items-center gap-2">
                     <Button
                       onClick={handleDownload}
                       variant="outline"
-                      className="border-border/40 hover:bg-primary/10 transition-colors">
+                      className="border-border/40 hover:bg-primary/10 transition-colors"
+                      aria-label="Download article as Markdown">
                       <DownloadCloudIcon className="w-4 h-4" />
                       Download Markdown
                     </Button>
                     <Button
                       onClick={handleCopy}
                       variant="outline"
-                      className="border-border/40 hover:bg-primary/10 transition-colors">
+                      className="border-border/40 hover:bg-primary/10 transition-colors"
+                      aria-label="Copy article to clipboard">
                       <CopyIcon className="w-4 h-4" />
                       Copy to Clipboard
                     </Button>
                   </div>
                 </div>
-                <div className="prose max-w-none dark:prose-invert p-6 rounded-lg bg-background/50 backdrop-blur-sm border border-border/40 shadow-sm">
+                <article className="prose max-w-none dark:prose-invert p-6 rounded-lg bg-background/50 backdrop-blur-sm border border-border/40 shadow-sm">
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>{article}</ReactMarkdown>
-                </div>
-              </div>
+                </article>
+              </section>
             )}
           </CardContent>
         </Card>
