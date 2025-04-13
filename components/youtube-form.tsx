@@ -8,9 +8,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { AlertCircleIcon, Loader2Icon } from "lucide-react";
+import { AlertCircleIcon, CopyIcon, DownloadCloudIcon, Loader2Icon } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 import { BlurryBackground } from "./blurry-background";
+import { toast } from "sonner";
 
 interface CaptionTrack {
   languageCode: string;
@@ -107,15 +108,15 @@ export function YouTubeForm() {
 
       // Get subtitles using the proxy
       const subtitles = await fetchSubtitlesWithProxy(videoId);
-      console.log("🚀 => handleSubmit => subtitles:", subtitles);
       if (!subtitles || subtitles.length === 0) {
         throw new Error("No subtitles found for this video");
       }
       const transcript = subtitles.map((item: { text: string }) => item.text).join(" ");
 
+      console.log("🚀 => handleSubmit => transcript:", transcript);
       // Generate article using Gemini
       const genAI = new GoogleGenerativeAI(keyToUse.trim());
-      const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+      const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
       const prompt = `Convert the following lecture transcript into a well-structured article in markdown format. The transcript is a lecture on a specific topic and might have some technical terms and jargon that are not transcribed correctly, so make sure you understand the context and automatically add the correct terms. Include headings, subheadings, and proper formatting. Make sure to include all the details and information from the transcript:\n\n${transcript}.`;
 
       const result = await model.generateContent(prompt);
@@ -140,6 +141,11 @@ export function YouTubeForm() {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+  };
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(article);
+    toast.success("Article copied to clipboard");
   };
 
   return (
@@ -258,16 +264,26 @@ export function YouTubeForm() {
 
             {article && (
               <div className="mt-8 space-y-4">
-                <div className="flex justify-between items-center">
+                <div className="flex items-start gap-2 flex-col">
                   <h3 className="text-xl font-semibold bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary/70">
                     Generated Article
                   </h3>
-                  <Button
-                    onClick={handleDownload}
-                    variant="outline"
-                    className="border-border/40 hover:bg-primary/10 transition-colors">
-                    Download Markdown
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      onClick={handleDownload}
+                      variant="outline"
+                      className="border-border/40 hover:bg-primary/10 transition-colors">
+                      <DownloadCloudIcon className="w-4 h-4" />
+                      Download Markdown
+                    </Button>
+                    <Button
+                      onClick={handleCopy}
+                      variant="outline"
+                      className="border-border/40 hover:bg-primary/10 transition-colors">
+                      <CopyIcon className="w-4 h-4" />
+                      Copy to Clipboard
+                    </Button>
+                  </div>
                 </div>
                 <div className="prose max-w-none dark:prose-invert p-6 rounded-lg bg-background/50 backdrop-blur-sm border border-border/40 shadow-sm">
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>{article}</ReactMarkdown>
