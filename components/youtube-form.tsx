@@ -8,10 +8,18 @@ import { Card, CardContent, CardDescription, CardHeader } from "./ui/card";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { AlertCircleIcon, CopyIcon, DownloadCloudIcon, Loader2Icon } from "lucide-react";
+import {
+  AlertCircleIcon,
+  CopyIcon,
+  DownloadCloudIcon,
+  Loader2Icon,
+  Settings2Icon,
+} from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 import { BlurryBackground } from "./blurry-background";
 import { toast } from "sonner";
+import { Switch } from "./ui/switch";
+import { Textarea } from "./ui/textarea";
 
 interface CaptionTrack {
   languageCode: string;
@@ -25,7 +33,10 @@ export function YouTubeForm() {
   const [article, setArticle] = useState("");
   const [error, setError] = useState("");
   const [isUsingDefaultKey, setIsUsingDefaultKey] = useState(true);
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [customPrompt, setCustomPrompt] = useState("");
   const defaultKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY || "";
+  const defaultPrompt = `Convert the following lecture transcript into a well-structured article in markdown format. The transcript is a lecture on a specific topic and might have some technical terms and jargon that are not transcribed correctly, so make sure you understand the context and automatically add the correct terms. Include headings, subheadings, and proper formatting. Make sure to include all the details and information from the transcript:\n\n{transcript}.`;
 
   useEffect(() => {
     // Load API key from localStorage on mount
@@ -117,7 +128,9 @@ export function YouTubeForm() {
       // Generate article using Gemini
       const genAI = new GoogleGenerativeAI(keyToUse.trim());
       const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
-      const prompt = `Convert the following lecture transcript into a well-structured article in markdown format. The transcript is a lecture on a specific topic and might have some technical terms and jargon that are not transcribed correctly, so make sure you understand the context and automatically add the correct terms. Include headings, subheadings, and proper formatting. Make sure to include all the details and information from the transcript:\n\n${transcript}.`;
+      const prompt = showAdvanced
+        ? customPrompt.replace("{transcript}", transcript)
+        : defaultPrompt.replace("{transcript}", transcript);
 
       const result = await model.generateContent(prompt);
       const generatedArticle = result.response.text();
@@ -238,6 +251,42 @@ export function YouTubeForm() {
                   required
                   aria-label="YouTube URL"
                 />
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label
+                    htmlFor="advanced-toggle"
+                    className="text-muted-foreground flex items-center gap-2">
+                    <Settings2Icon className="w-4 h-4" />
+                    Advanced Settings
+                  </Label>
+                  <Switch
+                    id="advanced-toggle"
+                    checked={showAdvanced}
+                    onCheckedChange={setShowAdvanced}
+                    aria-label="Toggle advanced settings"
+                  />
+                </div>
+                {showAdvanced && (
+                  <div className="space-y-2">
+                    <Label htmlFor="custom-prompt" className="text-muted-foreground">
+                      Custom Prompt
+                    </Label>
+                    <Textarea
+                      id="custom-prompt"
+                      className="bg-background/50 border-border/40 focus:ring-primary/20 min-h-[100px]"
+                      placeholder={defaultPrompt}
+                      value={customPrompt}
+                      onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
+                        setCustomPrompt(e.target.value)
+                      }
+                      aria-label="Custom prompt"
+                    />
+                    <p className="text-sm text-muted-foreground">
+                      Use {"{transcript}"} to insert the video transcript in your prompt
+                    </p>
+                  </div>
+                )}
               </div>
               <Button
                 type="submit"
