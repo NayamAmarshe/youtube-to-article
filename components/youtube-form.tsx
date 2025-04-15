@@ -188,6 +188,22 @@ export function YouTubeForm() {
           <CardContent className="space-y-6">
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="space-y-2">
+                <Label htmlFor="youtube-url" className="text-muted-foreground">
+                  YouTube URL
+                </Label>
+                <Input
+                  id="youtube-url"
+                  type="url"
+                  className="bg-background/50 border-border/40 focus:ring-primary/20"
+                  placeholder="https://www.youtube.com/watch?v=..."
+                  value={url}
+                  onChange={(e) => setUrl(e.target.value)}
+                  required
+                  aria-label="YouTube URL"
+                />
+              </div>
+
+              <div className="space-y-2">
                 <div className="flex justify-between items-center">
                   <Label htmlFor="api-key" className="text-muted-foreground">
                     Gemini API Key (Optional)
@@ -228,32 +244,18 @@ export function YouTubeForm() {
                 />
                 {isUsingDefaultKey && (
                   <p className="text-sm text-muted-foreground">
-                    Using default API key. Enter a custom key to use your own.{" "}
+                    Enter your own API key if you face errors or rate limits.{" "}
                     <a
                       className="text-primary hover:text-primary/80 transition-colors"
                       href="https://aistudio.google.com/app/apikey"
                       target="_blank"
                       rel="noopener noreferrer">
-                      Get your API key
+                      Get your API key here
                     </a>
                   </p>
                 )}
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="youtube-url" className="text-muted-foreground">
-                  YouTube URL
-                </Label>
-                <Input
-                  id="youtube-url"
-                  type="url"
-                  className="bg-background/50 border-border/40 focus:ring-primary/20"
-                  placeholder="https://www.youtube.com/watch?v=..."
-                  value={url}
-                  onChange={(e) => setUrl(e.target.value)}
-                  required
-                  aria-label="YouTube URL"
-                />
-              </div>
+
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label
