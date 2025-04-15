@@ -43,6 +43,7 @@ export function YouTubeForm() {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [customPrompt, setCustomPrompt] = useState("");
   const [isRegenerating, setIsRegenerating] = useState(false);
+  const [hasStoredArticle, setHasStoredArticle] = useState(false);
   const defaultKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY || "";
   const defaultPrompt = `Convert the following lecture transcript into a well-structured article in markdown format. The transcript is a lecture on a specific topic and might have some technical terms and jargon that are not transcribed correctly, so make sure you understand the context and automatically add the correct terms. DO NOT OUTPUT ANYTHING ELSE THAN THE ARTICLE. Include headings, subheadings, and proper formatting. Make sure to include all the details and information from the transcript:\n\n{transcript}.`;
 
@@ -64,6 +65,9 @@ export function YouTubeForm() {
     const matchingArticle = storedArticles.find((a) => a.url === url);
     if (matchingArticle) {
       setArticle(matchingArticle.article);
+      setHasStoredArticle(true);
+    } else {
+      setHasStoredArticle(false);
     }
   }, [url]);
 
@@ -166,14 +170,8 @@ export function YouTubeForm() {
     setError("");
 
     try {
-      // Check if we have a stored article for this URL
-      const storedArticles = JSON.parse(
-        localStorage.getItem("generatedArticles") || "[]"
-      ) as StoredArticle[];
-      const matchingArticle = storedArticles.find((a) => a.url === url);
-
-      if (matchingArticle) {
-        setArticle(matchingArticle.article);
+      // If we have a stored article and we're not regenerating, just return
+      if (hasStoredArticle && !isRegenerating) {
         setIsLoading(false);
         toast.info(
           "Article was already generated earlier. Please use the regenerate button to generate a new article."
@@ -189,6 +187,8 @@ export function YouTubeForm() {
       const generatedArticle = await generateArticle(url, keyToUse);
       setArticle(generatedArticle);
       storeArticle(url, generatedArticle);
+      setHasStoredArticle(true);
+      setIsRegenerating(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
@@ -196,23 +196,10 @@ export function YouTubeForm() {
     }
   };
 
-  const handleRegenerate = async () => {
+  const handleRegenerate = (e: React.MouseEvent) => {
+    e.preventDefault();
     setIsRegenerating(true);
-    setError("");
-    try {
-      const keyToUse = isUsingDefaultKey ? defaultKey : apiKey;
-      if (!keyToUse) {
-        throw new Error("Please enter your Gemini API key");
-      }
-
-      const generatedArticle = await generateArticle(url, keyToUse);
-      setArticle(generatedArticle);
-      storeArticle(url, generatedArticle);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred");
-    } finally {
-      setIsRegenerating(false);
-    }
+    handleSubmit(e as unknown as React.FormEvent);
   };
 
   const handleDownload = () => {
@@ -365,15 +352,25 @@ export function YouTubeForm() {
               </div>
               <Button
                 type="submit"
+                onClick={hasStoredArticle ? handleRegenerate : undefined}
                 disabled={isLoading}
                 className="w-full bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 transition-all duration-200">
                 {isLoading ? (
                   <div className="flex items-center justify-center">
                     <Loader2Icon className="w-4 h-4 mr-2 animate-spin" />
-                    Generating...
+                    {hasStoredArticle ? "Regenerating..." : "Generating..."}
                   </div>
                 ) : (
-                  "Generate Article"
+                  <div className="flex items-center justify-center">
+                    {hasStoredArticle ? (
+                      <>
+                        <RefreshCcwIcon className="w-4 h-4 mr-2" />
+                        Regenerate Article
+                      </>
+                    ) : (
+                      "Generate Article"
+                    )}
+                  </div>
                 )}
               </Button>
             </form>
@@ -396,19 +393,6 @@ export function YouTubeForm() {
                     Generated Article
                   </h4>
                   <div className="flex items-center gap-2 overflow-auto w-full p-3">
-                    <Button
-                      onClick={handleRegenerate}
-                      variant="outline"
-                      disabled={isRegenerating}
-                      className="border-border/40 hover:bg-primary/10 transition-colors"
-                      aria-label="Regenerate article">
-                      {isRegenerating ? (
-                        <Loader2Icon className="w-4 h-4 mr-2 animate-spin" />
-                      ) : (
-                        <RefreshCcwIcon className="w-4 h-4" />
-                      )}
-                      {isRegenerating ? "Regenerating..." : "Regenerate"}
-                    </Button>
                     <Button
                       onClick={handleDownload}
                       variant="outline"
