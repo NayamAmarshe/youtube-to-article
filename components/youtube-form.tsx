@@ -40,7 +40,7 @@ export function YouTubeForm() {
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [hasStoredArticle, setHasStoredArticle] = useState(false);
   const defaultKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY || "";
-  const defaultPrompt = `Convert the following lecture transcript into a well-structured article in markdown format. The transcript is a lecture on a specific topic and might have some technical terms and jargon that are not transcribed correctly, so make sure you understand the context and automatically add the correct terms. DO NOT OUTPUT ANYTHING ELSE THAN THE ARTICLE. Include headings, subheadings, and proper formatting. Make sure to include all the details and information from the transcript:\n\n{transcript}.`;
+  const defaultPrompt = `Convert the following lecture transcript into a well-structured article in markdown format. The transcript is a lecture on a specific topic and might have some technical terms and jargon that are not transcribed correctly, so make sure you understand the context and automatically add the correct terms. DO NOT MISS ANY DETAIL. INCLUDE EVERYTHING THAT IS IN THE TRANSCRIPT. DO NOT OUTPUT ANYTHING ELSE THAN THE ARTICLE. Include headings, subheadings, and proper formatting. Make sure to include all the details and information from the transcript:\n\n{transcript}.`;
 
   useEffect(() => {
     // Load API key from localStorage on mount
@@ -224,7 +224,7 @@ export function YouTubeForm() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "article.txt";
+    a.download = "article.txt`";
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
