@@ -22,11 +22,6 @@ import { toast } from "sonner";
 import { Switch } from "./ui/switch";
 import { Textarea } from "./ui/textarea";
 
-interface CaptionTrack {
-  languageCode: string;
-  baseUrl: string;
-}
-
 interface StoredArticle {
   url: string;
   article: string;
@@ -100,19 +95,39 @@ export function YouTubeForm() {
 
       const html = await response.text();
       const captionsUrl = html.match(/"captionTracks":\[(.*?)\]/)?.[1];
+      console.log("🚀 => YouTubeForm => captionsUrl:", captionsUrl);
 
       if (!captionsUrl) {
         throw new Error("No subtitles found for this video");
       }
 
-      const captions = JSON.parse(`[${captionsUrl}]`) as CaptionTrack[];
-      const englishCaption = captions.find((caption) => caption.languageCode === "en");
+      // Check if we're on a mobile device
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+        navigator.userAgent
+      );
 
-      if (!englishCaption) {
-        throw new Error("No English subtitles found for this video");
+      // Parse the caption data
+      let captionData;
+      try {
+        captionData = JSON.parse(`[${captionsUrl}]`)[0];
+      } catch (error) {
+        // If parsing fails and we're on mobile, try fixing the JSON
+        if (isMobile) {
+          const fixedCaptionsUrl = captionsUrl + "]}}";
+          console.log("🚀 => YouTubeForm => fixedCaptionsUrl:", fixedCaptionsUrl);
+          captionData = JSON.parse(`[${fixedCaptionsUrl}]`)[0];
+        } else {
+          throw error;
+        }
       }
 
-      const captionResponse = await fetch(`${proxyUrl}${englishCaption.baseUrl}`);
+      // Ensure we have a complete URL
+      let baseUrl = captionData.baseUrl;
+      if (!baseUrl.startsWith("http")) {
+        baseUrl = `https://www.youtube.com${baseUrl}`;
+      }
+
+      const captionResponse = await fetch(`${proxyUrl}${baseUrl}`);
       if (!captionResponse.ok) {
         throw new Error("Failed to fetch subtitles");
       }
