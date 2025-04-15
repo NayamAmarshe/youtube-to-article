@@ -36,7 +36,7 @@ export function YouTubeForm() {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [customPrompt, setCustomPrompt] = useState("");
   const defaultKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY || "";
-  const defaultPrompt = `Convert the following lecture transcript into a well-structured article in markdown format. The transcript is a lecture on a specific topic and might have some technical terms and jargon that are not transcribed correctly, so make sure you understand the context and automatically add the correct terms. Include headings, subheadings, and proper formatting. Make sure to include all the details and information from the transcript:\n\n{transcript}.`;
+  const defaultPrompt = `Convert the following lecture transcript into a well-structured article in markdown format. The transcript is a lecture on a specific topic and might have some technical terms and jargon that are not transcribed correctly, so make sure you understand the context and automatically add the correct terms. DO NOT OUTPUT ANYTHING ELSE THAN THE ARTICLE. Include headings, subheadings, and proper formatting. Make sure to include all the details and information from the transcript:\n\n{transcript}.`;
 
   useEffect(() => {
     // Load API key from localStorage on mount
@@ -108,19 +108,21 @@ export function YouTubeForm() {
         throw new Error("Please enter your Gemini API key");
       }
 
-      // Extract video ID from URL
+      // Extract video ID from URL - support all YouTube URL formats
       const videoId = url.match(
-        /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/
+        /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/|youtube\.com\/live\/|youtube\.com\/shorts\/)([^"&?\/\s]{11})/
       )?.[1];
 
       if (!videoId) {
-        throw new Error("Invalid YouTube URL");
+        throw new Error("Invalid YouTube URL. Please provide a valid YouTube URL.");
       }
 
       // Get subtitles using the proxy
       const subtitles = await fetchSubtitlesWithProxy(videoId);
       if (!subtitles || subtitles.length === 0) {
-        throw new Error("No subtitles found for this video");
+        throw new Error(
+          "No subtitles found for this video. Please ensure the video has captions enabled."
+        );
       }
       const transcript = subtitles.map((item: { text: string }) => item.text).join(" ");
 
@@ -320,7 +322,7 @@ export function YouTubeForm() {
                   <h4 className="text-xl font-semibold bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary/70">
                     Generated Article
                   </h4>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 overflow-auto w-full p-3">
                     <Button
                       onClick={handleDownload}
                       variant="outline"
