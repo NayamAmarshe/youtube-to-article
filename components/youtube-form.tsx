@@ -29,6 +29,8 @@ interface StoredArticle {
 }
 
 export function YouTubeForm() {
+  const defaultPrompt = `Convert the following lecture transcript into a well-structured article in markdown format. The transcript is a lecture on a specific topic and might have some technical terms and jargon that are not transcribed correctly, so make sure you understand the context and automatically add the correct terms. DO NOT MISS ANY DETAIL. INCLUDE EVERYTHING THAT IS IN THE TRANSCRIPT. DO NOT OUTPUT ANYTHING ELSE THAN THE ARTICLE. Include headings, subheadings, and proper formatting. Make sure to include all the details and information from the transcript:\n\n{transcript}.`;
+
   const [url, setUrl] = useState("");
   const [apiKey, setApiKey] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -36,11 +38,10 @@ export function YouTubeForm() {
   const [error, setError] = useState("");
   const [isUsingDefaultKey, setIsUsingDefaultKey] = useState(true);
   const [showAdvanced, setShowAdvanced] = useState(false);
-  const [customPrompt, setCustomPrompt] = useState("");
+  const [customPrompt, setCustomPrompt] = useState(defaultPrompt);
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [hasStoredArticle, setHasStoredArticle] = useState(false);
   const defaultKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY || "";
-  const defaultPrompt = `Convert the following lecture transcript into a well-structured article in markdown format. The transcript is a lecture on a specific topic and might have some technical terms and jargon that are not transcribed correctly, so make sure you understand the context and automatically add the correct terms. DO NOT MISS ANY DETAIL. INCLUDE EVERYTHING THAT IS IN THE TRANSCRIPT. DO NOT OUTPUT ANYTHING ELSE THAN THE ARTICLE. Include headings, subheadings, and proper formatting. Make sure to include all the details and information from the transcript:\n\n{transcript}.`;
 
   useEffect(() => {
     // Load API key from localStorage on mount
@@ -51,6 +52,12 @@ export function YouTubeForm() {
     } else {
       setApiKey("");
       setIsUsingDefaultKey(true);
+    }
+
+    // Load custom prompt from localStorage on mount
+    const savedPrompt = localStorage.getItem("customPrompt");
+    if (savedPrompt) {
+      setCustomPrompt(savedPrompt);
     }
 
     // Load article from localStorage if URL matches
@@ -346,17 +353,32 @@ export function YouTubeForm() {
                 </div>
                 {showAdvanced && (
                   <div className="space-y-2">
-                    <Label htmlFor="custom-prompt" className="text-muted-foreground">
-                      Custom Prompt
-                    </Label>
+                    <div className="flex justify-between items-center">
+                      <Label htmlFor="custom-prompt" className="text-muted-foreground">
+                        Custom Prompt
+                      </Label>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="text-muted-foreground hover:text-primary"
+                        onClick={() => {
+                          setCustomPrompt(defaultPrompt);
+                          localStorage.setItem("customPrompt", defaultPrompt);
+                        }}>
+                        Reset to Default
+                      </Button>
+                    </div>
                     <Textarea
                       id="custom-prompt"
                       className="bg-background/50 border-border/40 focus:ring-primary/20 min-h-[100px]"
                       placeholder={defaultPrompt}
                       value={customPrompt}
-                      onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
-                        setCustomPrompt(e.target.value)
-                      }
+                      onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => {
+                        const newPrompt = e.target.value;
+                        setCustomPrompt(newPrompt);
+                        localStorage.setItem("customPrompt", newPrompt);
+                      }}
                       aria-label="Custom prompt"
                     />
                     <p className="text-sm text-muted-foreground">
