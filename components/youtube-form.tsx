@@ -13,6 +13,7 @@ import {
   CopyIcon,
   DownloadCloudIcon,
   Loader2Icon,
+  RefreshCcwIcon,
   Settings2Icon,
 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
@@ -26,6 +27,12 @@ interface CaptionTrack {
   baseUrl: string;
 }
 
+interface StoredArticle {
+  url: string;
+  article: string;
+  timestamp: number;
+}
+
 export function YouTubeForm() {
   const [url, setUrl] = useState("");
   const [apiKey, setApiKey] = useState("");
@@ -35,6 +42,7 @@ export function YouTubeForm() {
   const [isUsingDefaultKey, setIsUsingDefaultKey] = useState(true);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [customPrompt, setCustomPrompt] = useState("");
+  const [isRegenerating, setIsRegenerating] = useState(false);
   const defaultKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY || "";
   const defaultPrompt = `Convert the following lecture transcript into a well-structured article in markdown format. The transcript is a lecture on a specific topic and might have some technical terms and jargon that are not transcribed correctly, so make sure you understand the context and automatically add the correct terms. DO NOT OUTPUT ANYTHING ELSE THAN THE ARTICLE. Include headings, subheadings, and proper formatting. Make sure to include all the details and information from the transcript:\n\n{transcript}.`;
 
@@ -48,7 +56,32 @@ export function YouTubeForm() {
       setApiKey("");
       setIsUsingDefaultKey(true);
     }
-  }, []);
+
+    // Load article from localStorage if URL matches
+    const storedArticles = JSON.parse(
+      localStorage.getItem("generatedArticles") || "[]"
+    ) as StoredArticle[];
+    const matchingArticle = storedArticles.find((a) => a.url === url);
+    if (matchingArticle) {
+      setArticle(matchingArticle.article);
+    }
+  }, [url]);
+
+  const storeArticle = (url: string, article: string) => {
+    const storedArticles = JSON.parse(
+      localStorage.getItem("generatedArticles") || "[]"
+    ) as StoredArticle[];
+    const newArticle = {
+      url,
+      article,
+      timestamp: Date.now(),
+    };
+
+    // Remove any existing article for this URL
+    const filteredArticles = storedArticles.filter((a) => a.url !== url);
+    // Add new article
+    localStorage.setItem("generatedArticles", JSON.stringify([...filteredArticles, newArticle]));
+  };
 
   const fetchSubtitlesWithProxy = async (videoId: string) => {
     try {
@@ -96,51 +129,89 @@ export function YouTubeForm() {
     }
   };
 
+  const generateArticle = async (url: string, keyToUse: string) => {
+    // Extract video ID from URL - support all YouTube URL formats
+    const videoId = url.match(
+      /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/|youtube\.com\/live\/|youtube\.com\/shorts\/)([^"&?\/\s]{11})/
+    )?.[1];
+
+    if (!videoId) {
+      throw new Error("Invalid YouTube URL. Please provide a valid YouTube URL.");
+    }
+
+    // Get subtitles using the proxy
+    const subtitles = await fetchSubtitlesWithProxy(videoId);
+    if (!subtitles || subtitles.length === 0) {
+      throw new Error(
+        "No subtitles found for this video. Please ensure the video has captions enabled."
+      );
+    }
+    const transcript = subtitles.map((item: { text: string }) => item.text).join(" ");
+
+    console.log("🚀 => generateArticle => transcript:", transcript);
+    // Generate article using Gemini
+    const genAI = new GoogleGenerativeAI(keyToUse.trim());
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+    const prompt = showAdvanced
+      ? customPrompt.replace("{transcript}", transcript)
+      : defaultPrompt.replace("{transcript}", transcript);
+
+    const result = await model.generateContent(prompt);
+    return result.response.text();
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError("");
-    setArticle("");
 
+    try {
+      // Check if we have a stored article for this URL
+      const storedArticles = JSON.parse(
+        localStorage.getItem("generatedArticles") || "[]"
+      ) as StoredArticle[];
+      const matchingArticle = storedArticles.find((a) => a.url === url);
+
+      if (matchingArticle) {
+        setArticle(matchingArticle.article);
+        setIsLoading(false);
+        toast.info(
+          "Article was already generated earlier. Please use the regenerate button to generate a new article."
+        );
+        return;
+      }
+
+      const keyToUse = isUsingDefaultKey ? defaultKey : apiKey;
+      if (!keyToUse) {
+        throw new Error("Please enter your Gemini API key");
+      }
+
+      const generatedArticle = await generateArticle(url, keyToUse);
+      setArticle(generatedArticle);
+      storeArticle(url, generatedArticle);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An error occurred");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleRegenerate = async () => {
+    setIsRegenerating(true);
+    setError("");
     try {
       const keyToUse = isUsingDefaultKey ? defaultKey : apiKey;
       if (!keyToUse) {
         throw new Error("Please enter your Gemini API key");
       }
 
-      // Extract video ID from URL - support all YouTube URL formats
-      const videoId = url.match(
-        /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/|youtube\.com\/live\/|youtube\.com\/shorts\/)([^"&?\/\s]{11})/
-      )?.[1];
-
-      if (!videoId) {
-        throw new Error("Invalid YouTube URL. Please provide a valid YouTube URL.");
-      }
-
-      // Get subtitles using the proxy
-      const subtitles = await fetchSubtitlesWithProxy(videoId);
-      if (!subtitles || subtitles.length === 0) {
-        throw new Error(
-          "No subtitles found for this video. Please ensure the video has captions enabled."
-        );
-      }
-      const transcript = subtitles.map((item: { text: string }) => item.text).join(" ");
-
-      console.log("🚀 => handleSubmit => transcript:", transcript);
-      // Generate article using Gemini
-      const genAI = new GoogleGenerativeAI(keyToUse.trim());
-      const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
-      const prompt = showAdvanced
-        ? customPrompt.replace("{transcript}", transcript)
-        : defaultPrompt.replace("{transcript}", transcript);
-
-      const result = await model.generateContent(prompt);
-      const generatedArticle = result.response.text();
+      const generatedArticle = await generateArticle(url, keyToUse);
       setArticle(generatedArticle);
+      storeArticle(url, generatedArticle);
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
-      setIsLoading(false);
+      setIsRegenerating(false);
     }
   };
 
@@ -325,6 +396,19 @@ export function YouTubeForm() {
                     Generated Article
                   </h4>
                   <div className="flex items-center gap-2 overflow-auto w-full p-3">
+                    <Button
+                      onClick={handleRegenerate}
+                      variant="outline"
+                      disabled={isRegenerating}
+                      className="border-border/40 hover:bg-primary/10 transition-colors"
+                      aria-label="Regenerate article">
+                      {isRegenerating ? (
+                        <Loader2Icon className="w-4 h-4 mr-2 animate-spin" />
+                      ) : (
+                        <RefreshCcwIcon className="w-4 h-4" />
+                      )}
+                      {isRegenerating ? "Regenerating..." : "Regenerate"}
+                    </Button>
                     <Button
                       onClick={handleDownload}
                       variant="outline"
