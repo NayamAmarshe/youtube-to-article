@@ -177,7 +177,7 @@ export function YouTubeForm() {
     console.log("🚀 => generateArticle => transcript:", transcript);
     // Generate article using Gemini
     const genAI = new GoogleGenerativeAI(keyToUse.trim());
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
     const prompt = showAdvanced
       ? customPrompt.replace("{transcript}", transcript)
       : defaultPrompt.replace("{transcript}", transcript);
